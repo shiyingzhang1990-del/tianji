@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天机 · 图形推理训练营</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <div id="app" v-cloak>
+    <header class="app-header">
+      <div class="brand" @click="go('home')">
+        <span class="logo">🧩</span>
+        <div class="brand-text">
+          <h1>天机</h1>
+          <p class="subtitle">图形推理训练营 · 揭示规律 · 由简入深</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="rank-badge" :style="{borderColor: rank.color, color: rank.color}" title="当前段位">
+          <span>{{ rank.icon }}</span>{{ rank.name }}
+        </div>
+        <button class="settings-btn" @click="showSettings = !showSettings" :title="showSettings ? '关闭设置' : 'AI 设置'">⚙️</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button v-for="t in tabs" :key="t.key" :class="{active: activeTab === t.key}" @click="go(t.key)">{{ t.label }}</button>
+    </nav>
+
+    <!-- 设置面板 -->
+    <div class="settings-panel" v-if="showSettings">
+      <div class="settings-card">
+        <h3>AI 模型设置（可选）</h3>
+        <label>API Key</label>
+        <div class="api-key-row">
+          <input :type="showKey ? 'text' : 'password'" v-model="settings.apiKey" placeholder="sk-..." class="api-key-input">
+          <button class="btn-toggle" @click="showKey = !showKey">{{ showKey ? '隐藏' : '显示' }}</button>
+        </div>
+        <label>API 地址</label>
+        <input v-model="settings.apiUrl" placeholder="https://api.moonshot.cn" class="full-input">
+        <label>模型</label>
+        <input v-model="settings.model" placeholder="kimi-k2.6" class="full-input">
+        <p class="hint">Key 仅保存在浏览器本地，不会上传。留空则使用内置解析（无需联网）。</p>
+        <div class="settings-actions">
+          <button class="btn-secondary" @click="testKey" :disabled="testing">{{ testing ? '测试中...' : '测试连接' }}</button>
+          <button class="btn-primary" @click="saveSettingsNow">保存</button>
+          <button class="btn-secondary" @click="clearKey">清空 Key</button>
+        </div>
+        <span class="test-result" v-if="testResult" :class="{success: testOk, fail: !testOk}">{{ testResult }}</span>
+      </div>
+    </div>
+
+    <main class="container">
+      <!-- ============ 首页 ============ -->
+      <section v-if="activeTab === 'home'">
+        <div class="hero">
+          <div class="hero-text">
+            <h2>一眼看穿图形规律</h2>
+            <p>图形推理是判断推理的经典题型，考察观察力、抽象力与逻辑力。本系统把图形「设置、技巧、思路、检测、AI 推理」融于一体，边玩边练。</p>
+            <div class="hero-btns">
+              <button class="btn-primary big" @click="go('quiz')">🚀 开始闯关</button>
+              <button class="btn-secondary big" @click="startDaily()">📅 今日挑战</button>
+            </div>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-grid">
+              <div class="stat"><span class="stat-num">{{ stats.score }}</span><span class="stat-label">总分</span></div>
+              <div class="stat"><span class="stat-num">{{ accuracy }}%</span><span class="stat-label">正确率</span></div>
+              <div class="stat"><span class="stat-num">{{ stats.bestCombo }}</span><span class="stat-label">最高连击</span></div>
+              <div class="stat"><span class="stat-num">{{ stats.games }}</span><span class="stat-label">答题数</span></div>
+            </div>
+            <div class="rank-progress-wrap">
+              <div class="rank-line">
+                <span>{{ rank.icon }} {{ rank.name }}</span>
+                <span v-if="next">距 {{ next.name }} 还差 {{ next.min - stats.score }} 分</span>
+                <span v-else>已达最高段位</span>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" :style="{width: rankProgress + '%'}"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="module-grid">
+          <div class="module-card" @click="go('knowledge')">
+            <div class="module-icon">📚</div>
+            <h3>知识库</h3>
+            <p>图形设置 · 分析技巧 · 推理思路，8 大类规律速查。</p>
+            <span class="module-arrow">进入 →</span>
+          </div>
+          <div class="module-card" @click="go('quiz')">
+            <div class="module-icon">⚔️</div>
+            <h3>闯关检测</h3>
+            <p>随机出题、即时反馈、连击得分，冲击王者段位。</p>
+            <span class="module-arrow">进入 →</span>
+          </div>
+          <div class="module-card" @click="go('ai')">
+            <div class="module-icon">🤖</div>
+            <h3>AI 出题</h3>
+            <p>程序生成图形题 + AI 逐步推理，看它如何得到结果。</p>
+            <span class="module-arrow">进入 →</span>
+          </div>
+        </div>
+
+        <div class="tip-card">
+          <strong>💡 速记口诀：</strong>相似不变看位置，相似有异看叠加；相异规则看属性，小元素多查数量；单一不规则，数面角线点。
+        </div>
+      </section>
+
+      <!-- ============ 知识库 ============ -->
+      <section v-if="activeTab === 'knowledge'">
+        <div class="k-tabs">
+          <button v-for="(v, key) in {basics:'图形设置', techniques:'分析技巧', reasoning:'推理思路'}"
+                  :key="key" :class="{active: kTab === key}" @click="kTab = key">{{ v }}</button>
+        </div>
+
+        <div class="k-card">
+          <h2>{{ KNOWLEDGE[kTab].title }}</h2>
+          <p class="k-intro">{{ KNOWLEDGE[kTab].intro }}</p>
+          <div v-for="(sec, i) in KNOWLEDGE[kTab].sections" :key="i" class="k-section">
+            <h3>{{ sec.k }}</h3>
+            <ul>
+              <li v-for="(it, j) in sec.items" :key="j">{{ it }}</li>
+            </ul>
+          </div>
+          <div v-if="KNOWLEDGE[kTab].mnemonic" class="mnemonic">
+            <strong>🎯 总口诀：</strong>{{ KNOWLEDGE[kTab].mnemonic }}
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 闯关检测 ============ -->
+      <section v-if="activeTab === 'quiz'">
+        <div class="quiz-topbar">
+          <div class="diff-selector">
+            <span class="diff-label">难度</span>
+            <button v-for="d in [1,2,3]" :key="d" :class="{active: diff === d}" @click="diff = d; startQuiz()">
+              {{ ['简单','中等','困难'][d-1] }}
+            </button>
+          </div>
+          <div class="score-bar">
+            <span>🔥 连击 {{ stats.combo }}</span>
+            <span>⭐ {{ stats.score }} 分</span>
+          </div>
+        </div>
+
+        <div v-if="q" class="quiz-card">
+          <div class="q-tag">{{ q.category }} · {{ q.rule }}</div>
+          <div class="stem">
+            <div class="figure" v-for="(s, i) in q.stem" :key="i" v-html="s"></div>
+            <div class="figure qmark">?</div>
+          </div>
+          <p class="q-prompt">第 4 个图形应选哪个？</p>
+          <div class="options">
+            <button v-for="(o, i) in q.options" :key="i" v-html="o"
+                    :class="optionClass(i)" @click="choose(i)"></button>
+          </div>
+
+          <div v-if="answered" class="feedback" :class="{good: correct, bad: !correct}">
+            <p class="fb-title">{{ correct ? '🎉 ' + feedback : '😅 ' + feedback }}</p>
+            <p class="fb-exp">{{ q.explanation }}</p>
+            <button class="btn-primary" @click="startQuiz">下一题 →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ AI 出题 ============ -->
+      <section v-if="activeTab === 'ai'">
+        <div class="quiz-topbar">
+          <div class="diff-selector">
+            <span class="diff-label">难度</span>
+            <button v-for="d in [1,2,3]" :key="d" :class="{active: aiDiff === d}" @click="aiDiff = d; startAI()">
+              {{ ['简单','中等','困难'][d-1] }}
+            </button>
+          </div>
+          <button class="btn-secondary" @click="startAI">🔄 换一题</button>
+        </div>
+
+        <div v-if="aiQ" class="quiz-card">
+          <div class="q-tag">{{ aiQ.category }} · {{ aiQ.rule }}</div>
+          <div class="stem">
+            <div class="figure" v-for="(s, i) in aiQ.stem" :key="i" v-html="s"></div>
+            <div class="figure qmark">?</div>
+          </div>
+          <div class="options">
+            <button v-for="(o, i) in aiQ.options" :key="i" v-html="o"
+                    :class="optionClass(i)" @click="choose(i)"></button>
+          </div>
+
+          <div class="ai-actions">
+            <button class="btn-primary" @click="aiExplain" :disabled="aiStreaming">
+              {{ aiStreaming ? 'AI 推理中...' : '🤖 AI 解析推理' }}
+            </button>
+            <button class="btn-secondary" @click="revealAIAnswer">👁 直接看答案</button>
+          </div>
+
+          <div v-if="aiReasoning" class="reasoning-card" :class="{ai: aiReasoningType === 'ai'}">
+            <div class="reasoning-head">
+              <span>{{ aiReasoningType === 'ai' ? '🤖 AI 推理过程' : '💡 内置解析' }}</span>
+              <span v-if="aiStreaming" class="streaming-dot">生成中…</span>
+            </div>
+            <pre class="reasoning-body">{{ aiReasoning }}</pre>
+            <p v-if="aiError" class="ai-error">{{ aiError }}</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>天机 · 图形推理训练营 · 壬镜科技出品</p>
+      <p>图形由程序即时生成，AI 解析仅供参考</p>
+    </footer>
+  </div>
+
+  <script src="assets/vue.global.prod.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
