@@ -185,7 +185,7 @@
           </div>
           <div class="options">
             <button v-for="(o, i) in aiQ.options" :key="i" v-html="o"
-                    :class="optionClass(i)" @click="choose(i)"></button>
+                    :class="aiOptionClass(i)" @click="chooseAI(i)"></button>
           </div>
 
           <div class="ai-actions">

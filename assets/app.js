@@ -439,6 +439,8 @@ Vue.createApp({
       // AI 出题
       aiDiff: 2,
       aiQ: null,
+      aiSelected: null,
+      aiAnswered: false,
       aiReasoning: '',
       aiReasoningType: '',   // 'builtin' | 'ai'
       aiStreaming: false,
@@ -502,10 +504,23 @@ Vue.createApp({
     /* ---------- AI 出题 ---------- */
     startAI: function () {
       this.aiQ = this.newQuestion(this.aiDiff);
+      this.aiSelected = null;
+      this.aiAnswered = false;
       this.aiReasoning = '';
       this.aiReasoningType = '';
       this.aiStreaming = false;
       this.aiError = '';
+    },
+    chooseAI: function (i) {
+      if (this.aiAnswered) return;
+      this.aiSelected = i;
+      this.aiAnswered = true;
+    },
+    aiOptionClass: function (i) {
+      if (!this.aiAnswered) return { option: true };
+      if (i === this.aiQ.answer) return { option: true, 'is-correct': true };
+      if (i === this.aiSelected) return { option: true, 'is-wrong': true };
+      return { option: true, dim: true };
     },
     aiExplain: function () {
       if (!this.aiQ) return;
